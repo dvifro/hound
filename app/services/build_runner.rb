@@ -83,11 +83,12 @@ class BuildRunner
   end
 
   def upsert_owner
-    Owner.upsert(
+    owner = Owner.upsert(
       github_id: payload.repository_owner_id,
       name: payload.repository_owner_name,
       organization: payload.repository_owner_is_organization?
     )
+    repo.update(owner: owner)
   end
 
   def github
