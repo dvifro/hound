@@ -7,8 +7,9 @@ describe SubscriptionsController, "#create" do
       repo = create(:repo, private: true)
       membership = create(:membership, repo: repo)
       activator = double(:repo_activator, activate: true)
+      subscriber = double("Subscriber", subscribe: true)
       allow(RepoActivator).to receive(:new).and_return(activator)
-      allow(RepoSubscriber).to receive(:subscribe).and_return(true)
+      allow(RepoSubscriber).to receive(:new).and_return(subscriber)
       stub_sign_in(membership.user, token)
 
       post(
@@ -20,9 +21,10 @@ describe SubscriptionsController, "#create" do
       )
 
       expect(activator).to have_received(:activate)
+      expect(subscriber).to have_received(:subscribe)
       expect(RepoActivator).to have_received(:new).
         with(repo: repo, github_token: token)
-      expect(RepoSubscriber).to have_received(:subscribe).
+      expect(RepoSubscriber).to have_received(:new).
         with(repo, membership.user, "cardtoken")
       expect(analytics).to have_tracked("Repo Activated").
         for_user(membership.user).
@@ -40,8 +42,9 @@ describe SubscriptionsController, "#create" do
       repo = create(:repo)
       user.repos << repo
       activator = double(:repo_activator, activate: true)
+      subscriber = double("Subscriber", subscribe: true)
       allow(RepoActivator).to receive(:new).and_return(activator)
-      allow(RepoSubscriber).to receive(:subscribe).and_return(true)
+      allow(RepoSubscriber).to receive(:new).and_return(subscriber)
       stub_sign_in(user)
 
       post(
@@ -67,6 +70,9 @@ describe SubscriptionsController, "#create" do
         deactivate: nil,
         errors: [error]
       )
+      subscriber = double(errors: [])
+      subscriber = double("Subscriber", subscribe: true, errors: [])
+      allow(RepoSubscriber).to receive(:new).and_return(subscriber)
       allow(RepoActivator).to receive(:new).and_return(activator)
       stub_sign_in(membership.user)
 
@@ -81,9 +87,10 @@ describe SubscriptionsController, "#create" do
     it "deactivates repo" do
       membership = create(:membership)
       repo = membership.repo
-      activator = double(:repo_activator, activate: true, deactivate: nil)
+      activator = double(:repo_activator, activate: true, deactivate: nil, errors: [])
+      subscriber = double("Subscriber", subscribe: nil, errors: ["error"])
       allow(RepoActivator).to receive(:new).and_return(activator)
-      allow(RepoSubscriber).to receive(:subscribe).and_return(false)
+      allow(RepoSubscriber).to receive(:new).and_return(subscriber)
       stub_sign_in(membership.user)
 
       post :create, repo_id: repo.id, format: :json
@@ -91,6 +98,7 @@ describe SubscriptionsController, "#create" do
       expect(response.code).to eq "502"
 
       expect(activator).to have_received(:deactivate)
+      expect(subscriber).to have_received(:subscribe)
     end
 
     it "returns subscription errors" do
