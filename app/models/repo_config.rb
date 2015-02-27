@@ -23,7 +23,16 @@ class RepoConfig
       config_file_path = config_path_for(language)
 
       if config_file_path
-        load_file(config_file_path, FILE_TYPES.fetch(language))
+        config = load_file(config_file_path, FILE_TYPES.fetch(language))
+        if config["inherit_from"]
+          wut = {}
+          config.delete("inherit_from").each do |ancestor|
+            wut.merge!(load_file(ancestor, "yaml"))
+          end
+          wut.merge!(config)
+          config = wut
+        end
+        config
       else
         {}
       end
