@@ -7,7 +7,7 @@ describe SubscriptionsController, "#create" do
       repo = create(:repo, private: true)
       membership = create(:membership, repo: repo)
       activator = double(:repo_activator, activate: true)
-      subscriber = double("Subscriber", subscribe: true)
+      subscriber = double("RepoSubscriber", subscribe: true)
       allow(RepoActivator).to receive(:new).and_return(activator)
       allow(RepoSubscriber).to receive(:new).and_return(subscriber)
       stub_sign_in(membership.user, token)
@@ -42,7 +42,7 @@ describe SubscriptionsController, "#create" do
       repo = create(:repo)
       user.repos << repo
       activator = double(:repo_activator, activate: true)
-      subscriber = double("Subscriber", subscribe: true)
+      subscriber = double("RepoSubscriber", subscribe: true)
       allow(RepoActivator).to receive(:new).and_return(activator)
       allow(RepoSubscriber).to receive(:new).and_return(subscriber)
       stub_sign_in(user)
@@ -60,18 +60,17 @@ describe SubscriptionsController, "#create" do
   end
 
   context "when activation fails" do
-    it "returns errors" do
+    it "returns activation errors" do
       membership = create(:membership)
       repo = membership.repo
-      error = "error"
+      errors = ["error"]
       activator = double(
         :repo_activator,
         activate: false,
         deactivate: nil,
-        errors: [error]
+        errors: errors
       )
-      subscriber = double(errors: [])
-      subscriber = double("Subscriber", subscribe: true, errors: [])
+      subscriber = double("RepoSubscriber", errors: [])
       allow(RepoSubscriber).to receive(:new).and_return(subscriber)
       allow(RepoActivator).to receive(:new).and_return(activator)
       stub_sign_in(membership.user)
@@ -79,7 +78,8 @@ describe SubscriptionsController, "#create" do
       post :create, repo_id: repo.id, format: :json
 
       parsed_body = JSON.parse(response.body)
-      expect(parsed_body["errors"]).to eq [error]
+      expect(response.status).to eq 502
+      expect(parsed_body["errors"]).to eq errors
     end
   end
 
@@ -88,31 +88,27 @@ describe SubscriptionsController, "#create" do
       membership = create(:membership)
       repo = membership.repo
       activator = double(:repo_activator, activate: true, deactivate: nil, errors: [])
-      subscriber = double("Subscriber", subscribe: nil, errors: ["error"])
+      subscriber = double("RepoSubscriber", subscribe: nil, errors: ["error"])
       allow(RepoActivator).to receive(:new).and_return(activator)
       allow(RepoSubscriber).to receive(:new).and_return(subscriber)
       stub_sign_in(membership.user)
 
       post :create, repo_id: repo.id, format: :json
 
-      expect(response.code).to eq "502"
-
       expect(activator).to have_received(:deactivate)
-      expect(subscriber).to have_received(:subscribe)
     end
 
     it "returns subscription errors" do
       membership = create(:membership)
       repo = membership.repo
-
-      activator = double(:repo_activator, activate: true, deactivate: nil, errors: [])
-
-      error = "error"
-      subscriber = double(
-        subscribe: nil,
-        errors: [error]
+      activator = double(
+        "RepoActivator",
+        activate: true,
+        deactivate: nil,
+        errors: []
       )
-
+      errors = ["error"]
+      subscriber = double("RepoSubscriber", subscribe: nil, errors: errors)
       allow(RepoActivator).to receive(:new).and_return(activator)
       allow(RepoSubscriber).to receive(:new).and_return(subscriber)
       stub_sign_in(membership.user)
@@ -120,9 +116,9 @@ describe SubscriptionsController, "#create" do
       post :create, repo_id: repo.id, format: :json
 
       parsed_body = JSON.parse(response.body)
-      expect(parsed_body["errors"]).to eq [error]
+      expect(response.status).to eq 502
+      expect(parsed_body["errors"]).to eq errors
     end
-
   end
 end
 

@@ -1,5 +1,6 @@
 class RepoSubscriber
   attr_reader :errors
+
   def initialize(repo, user, card_token)
     @repo = repo
     @user = user
@@ -52,6 +53,7 @@ class RepoSubscriber
   end
 
   private
+
   attr_reader :user, :repo, :card_token
 
   def report_exception(error)
@@ -78,8 +80,8 @@ class RepoSubscriber
   end
 
   def add_error(error)
-    if error.is_a?(Stripe::CardError)
-      error_message = ErrorMessageTranslation.from_stripe_error_message(error)
+    if error.is_a?(Stripe::StripeError)
+      error_message = ErrorMessageTranslation.from_stripe_error(error)
       errors.push(error_message).compact!
     end
   end

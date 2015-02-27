@@ -111,7 +111,7 @@ describe RepoActivator do
         activator = build_activator
         error_message = "error"
         allow(AddHoundToRepo).to receive(:run).and_raise(Octokit::Forbidden.new)
-        allow(ErrorMessageTranslation).to receive(:from_error_response).
+        allow(ErrorMessageTranslation).to receive(:from_github_error).
           and_return(error_message)
 
         activator.activate

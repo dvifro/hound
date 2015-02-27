@@ -6,16 +6,12 @@ class SubscriptionsController < ApplicationController
   def create
     if activator.activate && subscriber.subscribe
       analytics.track_repo_activated(repo)
-
-      text, status = repo, :created
+      render json: repo, status: :created
     else
       activator.deactivate
       errors = activator.errors + subscriber.errors
-
-      text, status = {errors: errors}, :bad_gateway
+      render json: { errors: errors }, status: :bad_gateway
     end
-
-    render json: text, status: status
   end
 
   def destroy

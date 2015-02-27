@@ -105,7 +105,17 @@ module StripeApiHelper
     )
   end
 
-  def stub_failed_subscription_create_request(plan_type)
+  def stub_failed_subscription_create_request(plan_type, response_attrs = {})
+    default_response_body =  {
+      error: {
+        message: "Your credit card was declined",
+        type: "card_error",
+        param: "number",
+        code: "incorrect_number"
+      }
+    }.to_json
+    default_response_status = 402
+
     stub_request(
       :post,
       "#{stripe_base_url}/#{stripe_customer_id}/subscriptions"
@@ -113,15 +123,8 @@ module StripeApiHelper
       body: hash_including("plan" => plan_type),
       headers: { "Authorization" => "Bearer #{ENV["STRIPE_API_KEY"]}" }
     ).to_return(
-      status: 402,
-      body: {
-        error: {
-          message: "Your credit card was declined",
-          type: "card_error",
-          param: "number",
-          code: "incorrect_number"
-        }
-      }.to_json
+      status: response_attrs.fetch(:response_status, default_response_status),
+      body: response_attrs.fetch(:response_body, default_response_body)
     )
   end
 

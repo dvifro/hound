@@ -47,8 +47,11 @@ describe RepoSubscriber do
         repo = create(:repo)
         user = create(:user, repos: [repo])
         stub_customer_create_request(user)
-        stub_failed_subscription_create_request(repo.plan_type)
-        allow(ErrorMessageTranslation).to receive(:from_stripe_error_message)
+        stub_failed_subscription_create_request(
+          repo.plan_type,
+          response_status: 404
+        )
+        allow(ErrorMessageTranslation).to receive(:from_stripe_error)
 
         result = RepoSubscriber.subscribe(repo, user, "cardtoken")
 
@@ -59,8 +62,10 @@ describe RepoSubscriber do
         repo = build_stubbed(:repo)
         user = create(:user, repos: [repo])
         stub_customer_create_request(user)
-        stub_failed_subscription_create_request(repo.plan_type)
-        allow(ErrorMessageTranslation).to receive(:from_stripe_error_message)
+        stub_failed_subscription_create_request(
+          repo.plan_type,
+          response_status: 404
+        )
         allow(Raven).to receive(:capture_exception)
 
         RepoSubscriber.subscribe(repo, user, "cardtoken")
@@ -127,7 +132,6 @@ describe RepoSubscriber do
         user = build_stubbed(:user, repos: [repo])
         stub_customer_create_request(user)
         stub_failed_subscription_destroy_request
-        allow(ErrorMessageTranslation).to receive(:from_stripe_error_message)
 
         result = RepoSubscriber.unsubscribe(repo, user)
 
@@ -139,7 +143,6 @@ describe RepoSubscriber do
         user = build_stubbed(:user, repos: [repo])
         stub_customer_create_request(user)
         stub_failed_subscription_destroy_request
-        allow(ErrorMessageTranslation).to receive(:from_stripe_error_message)
         allow(Raven).to receive(:capture_exception)
 
         RepoSubscriber.unsubscribe(repo, user)
@@ -150,15 +153,15 @@ describe RepoSubscriber do
   end
 
   describe "#subscribe" do
-    context "when subscription fails" do
-      context "when Stripe card error is raised" do
+    context "when Stripe exception is raised" do
+      context "when exception is a card error" do
         it "adds errors" do
           repo = create(:repo)
           user = create(:user, repos: [repo])
           stub_customer_create_request(user)
           stub_failed_subscription_create_request(repo.plan_type)
           error = "error"
-          allow(ErrorMessageTranslation).to receive(:from_stripe_error_message).
+          allow(ErrorMessageTranslation).to receive(:from_stripe_error).
             and_return(error)
           subscriber = RepoSubscriber.new(repo, user, "cardtoken")
 
@@ -166,6 +169,22 @@ describe RepoSubscriber do
 
           expect(subscriber.errors).to eq [error]
         end
+      end
+    end
+
+    context "when exception is not a card error" do
+      it "does not add errors" do
+        repo = create(:repo)
+        user = create(:user, repos: [repo])
+        stub_customer_create_request(user)
+        stub_failed_subscription_create_request(
+          repo.plan_type,
+          response_status: 404)
+        subscriber = RepoSubscriber.new(repo, user, "cardtoken")
+
+        subscriber.subscribe
+
+        expect(subscriber.errors).to be_empty
       end
     end
   end
