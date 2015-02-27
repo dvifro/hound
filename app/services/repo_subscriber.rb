@@ -1,5 +1,11 @@
 class RepoSubscriber
-  pattr_initialize :repo, :user, :card_token
+  attr_reader :errors
+  def initialize(repo, user, card_token)
+    @repo = repo
+    @user = user
+    @card_token = card_token
+    @errors = []
+  end
 
   def self.subscribe(repo, user, card_token)
     new(repo, user, card_token).subscribe
@@ -27,6 +33,7 @@ class RepoSubscriber
       price: repo.plan_price
     )
   rescue => error
+    add_error(error)
     report_exception(error)
     stripe_subscription.try(:delete)
     nil
@@ -45,6 +52,7 @@ class RepoSubscriber
   end
 
   private
+  attr_reader :user, :repo, :card_token
 
   def report_exception(error)
     Raven.capture_exception(
@@ -67,5 +75,12 @@ class RepoSubscriber
     user.update(stripe_customer_id: stripe_customer.id)
 
     stripe_customer
+  end
+
+  def add_error(error)
+    if error.is_a?(Stripe::CardError)
+      error_message = ErrorMessageTranslation.from_stripe_error_message(error)
+      errors.push(error_message).compact!
+    end
   end
 end
