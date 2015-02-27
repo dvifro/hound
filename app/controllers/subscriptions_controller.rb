@@ -4,15 +4,18 @@ class SubscriptionsController < ApplicationController
   before_action :update_email_address
 
   def create
-    if activator.activate && create_subscription
+    if activator.activate && subscriber.subscribe
       analytics.track_repo_activated(repo)
 
-      render json: repo, status: :created
+      text, status = repo, :created
     else
       activator.deactivate
+      errors = activator.errors + subscriber.errors
 
-      head 502
+      text, status = {errors: errors}, :bad_gateway
     end
+
+    render json: text, status: status
   end
 
   def destroy
@@ -28,7 +31,7 @@ class SubscriptionsController < ApplicationController
   private
 
   def activator
-    RepoActivator.new(repo: repo, github_token: github_token)
+    @activator ||= RepoActivator.new(repo: repo, github_token: github_token)
   end
 
   def repo
@@ -39,8 +42,8 @@ class SubscriptionsController < ApplicationController
     session.fetch(:github_token)
   end
 
-  def create_subscription
-    RepoSubscriber.subscribe(repo, current_user, params[:card_token])
+  def subscriber
+    @subscriber ||= RepoSubscriber.new(repo, current_user, params[:card_token])
   end
 
   def delete_subscription

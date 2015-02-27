@@ -56,6 +56,27 @@ describe SubscriptionsController, "#create" do
     end
   end
 
+  context "when activation fails" do
+    it "returns errors" do
+      membership = create(:membership)
+      repo = membership.repo
+      error = "error"
+      activator = double(
+        :repo_activator,
+        activate: false,
+        deactivate: nil,
+        errors: [error]
+      )
+      allow(RepoActivator).to receive(:new).and_return(activator)
+      stub_sign_in(membership.user)
+
+      post :create, repo_id: repo.id, format: :json
+
+      parsed_body = JSON.parse(response.body)
+      expect(parsed_body["errors"]).to eq [error]
+    end
+  end
+
   context "when subscription fails" do
     it "deactivates repo" do
       membership = create(:membership)
@@ -68,8 +89,32 @@ describe SubscriptionsController, "#create" do
       post :create, repo_id: repo.id, format: :json
 
       expect(response.code).to eq "502"
+
       expect(activator).to have_received(:deactivate)
     end
+
+    it "returns subscription errors" do
+      membership = create(:membership)
+      repo = membership.repo
+
+      activator = double(:repo_activator, activate: true, deactivate: nil, errors: [])
+
+      error = "error"
+      subscriber = double(
+        subscribe: nil,
+        errors: [error]
+      )
+
+      allow(RepoActivator).to receive(:new).and_return(activator)
+      allow(RepoSubscriber).to receive(:new).and_return(subscriber)
+      stub_sign_in(membership.user)
+
+      post :create, repo_id: repo.id, format: :json
+
+      parsed_body = JSON.parse(response.body)
+      expect(parsed_body["errors"]).to eq [error]
+    end
+
   end
 end
 
