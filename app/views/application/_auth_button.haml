@@ -1,8 +1,15 @@
+= content_for "original", t("authenticate")
+= content_for "aggressive", t("aggressive_authenticate")
+
 = link_to "/auth/github", class: "auth" do
   %i.fa.fa-github
-  %span= t("authenticate")
+  %span= content_for @button_type
 
 - content_for :analytics do
   :javascript
     var link = document.getElementsByClassName("auth")[0];
-    window.analytics.trackLink(link, "Clicked Sign In");
+    window.analytics.trackLink(
+      link,
+      "Clicked Sign In",
+      { button_type: #{@button_type} }
+    );
